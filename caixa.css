@@ -1,0 +1,417 @@
+/* Esquema de Cores do Bar do Ceará */
+:root {
+    --primary-color: #e0492f; /* Vermelho/Laranja Forte */
+    --secondary-color: #f8d568; /* Amarelo/Dourado */
+    --dark-color: #2c1a0a; /* Dark Brown */
+    --success-color: #198754; /* Padrão Bootstrap, usado para o modal de caixa */
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    overflow: auto;
+    background: linear-gradient(to bottom, var(--secondary-color), var(--primary-color));
+}
+
+.header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Container de Clientes (Substitui Mesas) */
+.clientes-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 15px;
+    margin-bottom: 2rem;
+}
+
+.cliente {
+    background: white;
+    border: 3px solid #dee2e6;
+    border-radius: 10px;
+    padding: 15px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: var(--dark-color);
+    border-color: var(--secondary-color);
+}
+
+.cliente:hover {
+    background-color: #f1f1f1;
+    transform: translateY(-2px);
+}
+
+/* Cliente com pedido em aberto */
+.cliente.aberto {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: #b03a27;
+    animation: pulse-open 1.5s infinite;
+}
+
+.cliente.cliente-aberto {
+    background-color: var(--success-color);
+    color: white;
+}
+
+@keyframes pulse-open {
+    0% { box-shadow: 0 0 0 0 rgba(224, 73, 47, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(224, 73, 47, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(224, 73, 47, 0); }
+}
+
+/* Seção de Produtos */
+.produtos-container,
+.caixa-produtos-container {
+    
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    overflow-y: auto; /* Ou scroll */
+}
+
+.produto {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.produto:active {
+    transform: scale(0.98);
+}
+
+.produto-nome {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark-color);
+    min-height: 40px; /* Para manter o alinhamento */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.produto-preco {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-top: 5px;
+}
+
+/* =========================================== */
+/* LAYOUT DO MODAL DO CAIXA - CORRIGIDO */
+/* =========================================== */
+
+.modal-fixed-body {
+    padding: 1.5rem;
+    height: 80vh; /* Aumentei a altura */
+    overflow-y: auto; /* permite rolagem vertical */
+    overflow-x: hidden; /* mantém o layout limpo */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Container principal do modal */
+.caixa-modal-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 1rem;
+}
+
+/* Linha superior: Itens do pedido */
+.caixa-itens-container {
+    flex: 0 0 auto;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+}
+
+.caixa-itens-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.caixa-itens-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+}
+
+/* Linha do meio: Produtos para adicionar */
+.caixa-produtos-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    min-height: 300px; /* Altura mínima garantida */
+    overflow: hidden; /* impede que a grade estoure o container */
+}
+
+.caixa-categorias-container {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.caixa-categorias-container button {
+    background-color: var(--dark-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+    font-size: 0.9rem;
+}
+
+.caixa-categorias-container button.active {
+    background-color: var(--primary-color);
+}
+
+.caixa-produtos-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    overflow-y: auto;  /* scroll só aqui */
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    height: 100%; /* ocupa o espaço disponível */
+    min-height: 200px;
+    max-height: 100%; /* impede crescer além da seção */
+}
+
+
+/* Linha inferior: Resumo e ações */
+.caixa-resumo-container {
+    flex: 0 0 auto;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Itens da lista */
+.list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    font-size: 0.95rem;
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+.item-info {
+    flex-grow: 1;
+}
+
+.item-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.item-controls button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Botões de Categoria */
+#category-buttons-container {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+#category-buttons-container button {
+    background-color: var(--dark-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+#category-buttons-container button.active {
+    background-color: var(--primary-color);
+}
+
+/* Scrollbars personalizadas */
+.caixa-itens-scroll::-webkit-scrollbar,
+.caixa-produtos-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.caixa-itens-scroll::-webkit-scrollbar-track,
+.caixa-produtos-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.caixa-itens-scroll::-webkit-scrollbar-thumb,
+.caixa-produtos-grid::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.caixa-itens-scroll::-webkit-scrollbar-thumb:hover,
+.caixa-produtos-grid::-webkit-scrollbar-thumb:hover {
+    background: #b03a27;
+}
+
+/* Alertas */
+.alert-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    width: auto;
+    max-width: 90vw;
+    pointer-events: none;
+}
+
+.alert {
+    pointer-events: all;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: #e40606;
+  --bs-btn-border-color: #d40d0d;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .modal-fixed-body {
+        height: 90vh;
+        padding: 1rem;
+    }
+    
+    .caixa-produtos-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+    }
+    
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .produtos-container,
+    .clientes-container {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+    
+    .caixa-itens-scroll {
+        max-height: 150px;
+    }
+}
+
+@media (max-width: 576px) {
+    .modal-fixed-body {
+        height: 95vh;
+    }
+    
+    .caixa-produtos-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .item-controls {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .item-controls button {
+        width: 28px;
+        height: 28px;
+        font-size: 1rem;
+    }
+}
+
+@media print {
+    /* Estilos de impressão mantidos */
+    body * { visibility: hidden; }
+    #print-area, #print-area * { visibility: visible; }
+    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+}
+
+
+
+/* Estilos para o Log de Atividades */
+.log-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.log-entry {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+    line-height: 1.4;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry span {
+    color: #6c757d;
+    font-weight: bold;
+}
+
+/* Cores para diferentes tipos de log */
+.log-entry.info {
+    color: #0d6efd;
+}
+
+.log-entry.success {
+    color: #198754;
+}
+
+.log-entry.warning {
+    color: #ffc107;
+}
+
+.log-entry.error {
+    color: #dc3545;
+}

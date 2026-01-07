@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Controle de Fiado</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<style>
+body { background:#f4f6f8; }
+#login { max-width:400px; margin:100px auto; }
+#app { display:none; }
+.cliente-item { cursor:pointer; }
+.cliente-item:hover { background:#eef; }
+.pendente { color:#dc3545; font-weight:bold; }
+.quitado { color:#198754; font-weight:bold; }
+.historico-box { background:#fff; padding:15px; border-radius:6px; }
+.saldo-badge { font-size:0.75em; margin-left: 5px; }
+.fiado-item { border-left: 4px solid #dc3545 !important; }
+.pagamento-item { border-left: 4px solid #198754 !important; }
+.badge-cliente { background-color: #6c757d; color: white; font-size: 0.75em; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="card p-4 shadow">
+  <h4 class="mb-3">🔒 Acesso ao Fiado</h4>
+  <input type="password" id="senha" class="form-control mb-3" placeholder="Digite a senha">
+  <button class="btn btn-dark w-100" onclick="entrar()">Entrar</button>
+  <p id="erro" class="text-danger mt-2"></p>
+</div>
+
+<!-- APP -->
+<div id="app" class="container mt-4">
+  <h3>📒 Controle de Fiados</h3>
+
+  <div class="row">
+    <div class="col-md-4">
+      <div class="d-flex mb-3">
+        <button class="btn btn-success me-2" onclick="carregarClientesFiado()">🔄 Atualizar</button>
+        <input type="text" id="filtroCliente" class="form-control" placeholder="Filtrar por nome..." onkeyup="filtrarClientes()">
+      </div>
+      <ul class="list-group" id="listaClientes"></ul>
+    </div>
+
+    <div class="col-md-8">
+      <div id="detalhes" class="historico-box"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// 🔥 CONFIG FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyCdbKJ9gO0m7eGzX5vZotORRnaKp0XZAew",
+  authDomain: "bar-do-ceara.firebaseapp.com",
+  databaseURL: "https://bar-do-ceara-default-rtdb.firebaseio.com",
+  projectId: "bar-do-ceara",
+  storageBucket: "bar-do-ceara.firebasestorage.app",
+  messagingSenderId: "261053972795",
+  appId: "1:261053972795:web:f2a08158ecf83b36ef771e",
+  measurementId: "G-Y0GVZ7W652"
+};
+
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
+
+// Variável global para armazenar clientes
+let todosClientes = [];
+
+// 🔐 LOGIN
+function entrar() {
+  const senha = document.getElementById('senha').value;
+  const erro = document.getElementById('erro');
+  
+  if (senha === '123456') {
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    carregarClientesFiado();
+  } else {
+    erro.innerText = 'Senha incorreta. Tente novamente.';
+  }
+}
+
+// 📋 CARREGAR CLIENTES APENAS DO VENDAS_FIADO
+function carregarClientesFiado() {
+  const listaClientesElement = document.getElementById('listaClientes');
+  listaClientesElement.innerHTML = '<li class="list-group-item text-muted">Buscando clientes com fiado...</li>';
+  
+  // Buscar apenas vendas fiado
+  firebase.database().ref('vendas_fiado').once('value')
+    .then((vendasSnapshot) => {
+      const vendas = vendasSnapshot.val();
+      
+      if (!vendas) {
+        listaClientesElement.innerHTML = '<li class="list-group-item text-muted">Nenhum cliente com fiado encontrado.</li>';
+        todosClientes = [];
+        return;
+      }
+      
+      // Agrupar por cliente (usando nome como identificador único)
+      const clientesMap = new Map();
+      
+      Object.values(vendas).forEach(venda => {
+        if (venda.nome && (venda.pagamento === 'Fiado' || venda.tipo === 'cliente_fichado')) {
+          const nomeCliente = venda.nome.trim();
+          
+          if (!clientesMap.has(nomeCliente)) {
+            clientesMap.set(nomeCliente, {
+              nome: nomeCliente,
+              cpf: venda.cpf || '',
+              vendas: []
+            });
+          }
+          
+          const cliente = clientesMap.get(nomeCliente);
+          cliente.vendas.push(venda);
+          
+          // Se tiver CPF na venda, usar para referência
+          if (venda.cpf && !cliente.cpf) {
+            cliente.cpf = venda.cpf;
+          }
+        }
+      });
+      
+      // Converter Map para array
+      todosClientes = Array.from(clientesMap.values());
+      
+      // Calcular saldo para cada cliente e exibir
+      exibirClientesComSaldo();
+    })
+    .catch((error) => {
+      console.error("Erro ao carregar clientes com fiado:", error);
+      listaClientesElement.innerHTML = 
+        '<li class="list-group-item text-danger">Erro ao carregar clientes com fiado.</li>';
+    });
+}
+
+// 📊 EXIBIR CLIENTES COM SALDO CALCULADO
+async function exibirClientesComSaldo() {
+  const listaClientesElement = document.getElementById('listaClientes');
+  listaClientesElement.innerHTML = '';
+  
+  if (todosClientes.length === 0) {
+    listaClientesElement.innerHTML = '<li class="list-group-item text-muted">Nenhum cliente com fiado encontrado.</li>';
+    return;
+  }
+  
+  // Para cada cliente, calcular saldo
+  for (const cliente of todosClientes) {
+    const saldo = await calcularSaldoCliente(cliente.nome);
+    
+    // Só mostrar clientes com saldo pendente (>0)
+    if (saldo <= 0) continue;
+
+    const li = document.createElement('li');
+    li.className = 'list-group-item cliente-item';
+    li.setAttribute('data-nome', cliente.nome.toLowerCase());
+    
+    // Badge de saldo
+    const saldoBadge = saldo > 0 ? 
+      `<span class="badge bg-danger saldo-badge">R$ ${saldo.toFixed(2)}</span>` :
+      `<span class="badge bg-success saldo-badge">Quitado</span>`;
+    
+    // Contar quantas vendas fiado
+    const numVendas = cliente.vendas ? cliente.vendas.length : 0;
+    const vendasBadge = `<span class="badge badge-cliente">${numVendas} venda${numVendas !== 1 ? 's' : ''}</span>`;
+    
+    li.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>${cliente.nome}</strong>
+          <br>
+          <small class="text-muted">${vendasBadge}</small>
+        </div>
+        <div>
+          ${saldoBadge}
+          <span class="badge bg-secondary ms-1">→</span>
+        </div>
+      </div>
+    `;
+    
+    li.onclick = () => abrirCliente(cliente.nome);
+    listaClientesElement.appendChild(li);
+  }
+  
+  // Se nenhum cliente com saldo > 0
+  if (listaClientesElement.children.length === 0) {
+    listaClientesElement.innerHTML = '<li class="list-group-item text-muted">Nenhum cliente com saldo pendente.</li>';
+  }
+}
+
+// 🧮 CALCULAR SALDO DO CLIENTE
+async function calcularSaldoCliente(nomeCliente) {
+  let saldo = 0;
+  
+  // Buscar todas as vendas fiado deste cliente
+  const vendasSnapshot = await firebase.database().ref('vendas_fiado').once('value');
+  vendasSnapshot.forEach((venda) => {
+    const vendaData = venda.val();
+    if (vendaData.nome === nomeCliente && 
+        (vendaData.pagamento === 'Fiado' || vendaData.tipo === 'cliente_fichado')) {
+      saldo += parseFloat(vendaData.totalVenda || 0);
+    }
+  });
+  
+  // Buscar pagamentos deste cliente
+  const pagamentosSnapshot = await firebase.database().ref('fiado_pagamentos').once('value');
+  pagamentosSnapshot.forEach((pagamento) => {
+    const pagamentoData = pagamento.val();
+    if (pagamentoData.clienteNome === nomeCliente) {
+      saldo -= parseFloat(pagamentoData.valor || 0);
+    }
+  });
+  
+  return saldo;
+}
+
+// 🔍 FILTRAR CLIENTES
+function filtrarClientes() {
+  const filtro = document.getElementById('filtroCliente').value.toLowerCase();
+  const itensClientes = document.querySelectorAll('.cliente-item');
+  
+  itensClientes.forEach(item => {
+    const nome = item.getAttribute('data-nome');
+    if (nome.includes(filtro)) {
+      item.style.display = '';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+// 📊 ABRIR DETALHES DO CLIENTE
+function abrirCliente(nomeCliente) {
+  const div = document.getElementById('detalhes');
+  
+  div.innerHTML = `
+    <h5>${nomeCliente}</h5>
+    <p class="text-muted">Cliente do sistema de fiados</p>
+    <hr>
+    <h6>Histórico de Fiados e Pagamentos:</h6>
+    <div id="historicoCliente"></div>
+    <hr>
+    <div class="mt-3">
+      <h6>Adicionar Pagamento:</h6>
+      <div class="input-group mb-3">
+        <span class="input-group-text">R$</span>
+        <input type="number" id="valorPago" class="form-control" placeholder="Valor pago" step="0.01" min="0.01">
+        <button class="btn btn-primary" onclick="pagar('${nomeCliente.replace(/'/g, "\\'")}')">Registrar Pagamento</button>
+      </div>
+    </div>
+  `;
+
+  carregarHistoricoFiado(nomeCliente);
+}
+
+// 📝 CARREGAR HISTÓRICO DE FIADOS DO CLIENTE
+function carregarHistoricoFiado(nomeCliente) {
+  const divHistorico = document.getElementById('historicoCliente');
+  divHistorico.innerHTML = '<p>Carregando histórico de fiados...</p>';
+  
+  let saldo = 0;
+  let historico = [];
+
+  // Buscar vendas fiado deste cliente
+  firebase.database().ref('vendas_fiado').once('value')
+    .then((vendasSnapshot) => {
+      vendasSnapshot.forEach((venda) => {
+        const vendaData = venda.val();
+        const vendaKey = venda.key;
+        
+        // Verificar se é deste cliente e se é fiado
+        if (vendaData.nome === nomeCliente && 
+            (vendaData.pagamento === 'Fiado' || vendaData.tipo === 'cliente_fichado')) {
+          const valorVenda = parseFloat(vendaData.totalVenda || 0);
+          saldo += valorVenda;
+          
+          // Formatar data
+          let dataFormatada = 'Data não informada';
+          if (vendaData.fechamento) {
+            try {
+              const data = new Date(vendaData.fechamento);
+              dataFormatada = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR');
+            } catch (e) {
+              dataFormatada = vendaData.fechamento;
+            }
+          }
+          
+          // Formatar itens
+          let itensDescricao = '';
+          if (vendaData.itens && Array.isArray(vendaData.itens)) {
+            itensDescricao = vendaData.itens.map(item => 
+              `${item.quantidade}x ${item.nome}`
+            ).join(', ');
+          }
+          
+          historico.push({
+            tipo: 'fiado',
+            data: dataFormatada,
+            valor: valorVenda,
+            descricao: 'Compra fiado',
+            itensDescricao: itensDescricao || 'Compra fiado',
+            id: vendaKey
+          });
+        }
+      });
+
+      // Buscar pagamentos deste cliente
+      return firebase.database().ref('fiado_pagamentos').once('value');
+    })
+    .then((pagamentosSnapshot) => {
+      pagamentosSnapshot.forEach((pagamento) => {
+        const pagamentoData = pagamento.val();
+        if (pagamentoData.clienteNome === nomeCliente) {
+          const valorPagamento = parseFloat(pagamentoData.valor || 0);
+          saldo -= valorPagamento;
+          
+          let dataFormatada = '';
+          if (pagamentoData.data || pagamentoData.hora) {
+            dataFormatada = `${pagamentoData.data || ''} ${pagamentoData.hora || ''}`.trim();
+          } else {
+            dataFormatada = 'Data não informada';
+          }
+          
+          historico.push({
+            tipo: 'pagamento',
+            data: dataFormatada,
+            valor: valorPagamento,
+            descricao: `Pagamento recebido`,
+            id: pagamento.key
+          });
+        }
+      });
+
+      // Ordenar histórico por data (mais recente primeiro)
+      historico.sort((a, b) => {
+        try {
+          const dateA = new Date(a.data);
+          const dateB = new Date(b.data);
+          return dateB - dateA;
+        } catch (e) {
+          return 0;
+        }
+      });
+
+      // Exibir histórico
+      let html = '';
+      if (historico.length === 0) {
+        html = '<p class="text-muted">Nenhum registro de fiado encontrado.</p>';
+      } else {
+        html += '<div class="list-group">';
+        historico.forEach(item => {
+          const isFiado = item.tipo === 'fiado';
+          const icon = isFiado ? '🛒' : '💰';
+          const classe = isFiado ? 'fiado-item' : 'pagamento-item';
+          const texto = isFiado ? 'text-danger' : 'text-success';
+          const sinal = isFiado ? '-' : '+';
+          const bg = isFiado ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10';
+          
+          html += `
+            <div class="list-group-item ${classe} mb-2 ${bg}">
+              <div class="d-flex w-100 justify-content-between">
+                <div>
+                  <h6 class="mb-1">
+                    ${icon} ${item.descricao}
+                  </h6>
+                  ${item.itensDescricao ? `<p class="mb-1 small">${item.itensDescricao}</p>` : ''}
+                </div>
+                <span class="${texto} fw-bold">
+                  ${sinal} R$ ${item.valor.toFixed(2)}
+                </span>
+              </div>
+              <small class="text-muted">${item.data}</small>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      // Adicionar saldo
+      html += `
+        <div class="mt-3 p-3 ${saldo > 0 ? 'bg-danger bg-opacity-25' : 'bg-success bg-opacity-25'}">
+          <h5 class="mb-0 ${saldo > 0 ? 'text-danger' : 'text-success'}">
+            Saldo Total: R$ ${saldo.toFixed(2)}
+            ${saldo > 0 ? '🔴 (Pendente)' : '✅ (Quitado)'}
+          </h5>
+        </div>
+      `;
+
+      divHistorico.innerHTML = html;
+    })
+    .catch(error => {
+      console.error('Erro ao carregar histórico de fiados:', error);
+      divHistorico.innerHTML = '<p class="text-danger">Erro ao carregar histórico de fiados.</p>';
+    });
+}
+
+// 💰 REGISTRAR PAGAMENTO
+function pagar(nomeCliente) {
+  const valorInput = document.getElementById('valorPago');
+  const valor = parseFloat(valorInput.value);
+  
+  if (!valor || valor <= 0) {
+    alert('Digite um valor válido para pagamento.');
+    return;
+  }
+
+  if (!confirm(`Registrar pagamento de R$ ${valor.toFixed(2)} para ${nomeCliente}?`)) {
+    return;
+  }
+
+  const pagamentoData = {
+    clienteNome: nomeCliente,
+    valor: valor,
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR'),
+    dataCompleta: new Date().toISOString(),
+    registradoPor: 'Sistema Fiado'
+  };
+
+  firebase.database().ref('fiado_pagamentos').push(pagamentoData)
+    .then(() => {
+      alert('Pagamento registrado com sucesso!');
+      valorInput.value = '';
+      
+      // Atualizar histórico e lista
+      carregarHistoricoFiado(nomeCliente);
+      setTimeout(() => carregarClientesFiado(), 1000);
+    })
+    .catch(error => {
+      alert('Erro ao registrar pagamento: ' + error.message);
+    });
+}
+
+// Permitir login com Enter
+document.getElementById('senha').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    entrar();
+  }
+});
+
+// Permitir filtrar com Enter no campo de filtro
+document.getElementById('filtroCliente').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    filtrarClientes();
+  }
+});
+</script>
+
+</body>
+</html>
